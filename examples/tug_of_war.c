@@ -180,6 +180,7 @@ int main(){
         printf( RED "Player %d: rest time: %.2lf\n" RESET, i, info_a[i].rest_time);
         printf( BLUE "Player %d: rest time: %.2lf\n" RESET, i, info_b[i].rest_time);
     }
+    printf("Press anything to start game.");
     getchar();
     // Inits the info panel
     GAME.team_a = team_a;
