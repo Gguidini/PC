@@ -1,3 +1,13 @@
+/*  Created by Gguidini, April 6th, 2019.
+*
+*   This simple program shows concurrency in a computer.
+*   The program simulates a "tug of war" game between two teams.
+*   Every player is a thread. Main thread displays the game progress.
+*   
+*   In the progress display, every time a player is bar is lit, that thread is executing.
+*/
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
