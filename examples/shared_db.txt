@@ -1,0 +1,12 @@
+[Mike] - 0 at Mon Apr  8 20:41:48 2019
+[Romeo] - 1 at Mon Apr  8 20:41:48 2019
+[Foxtrot] - 1 at Mon Apr  8 20:41:50 2019
+[Whiskey] - 0 at Mon Apr  8 20:41:50 2019
+[Papa] - 1 at Mon Apr  8 20:41:52 2019
+[Alpha] - 0 at Mon Apr  8 20:41:52 2019
+[Lima] - 1 at Mon Apr  8 20:41:54 2019
+[X-ray] - 0 at Mon Apr  8 20:41:54 2019
+[Kilo] - 1 at Mon Apr  8 20:41:56 2019
+[Foxtrot] - 0 at Mon Apr  8 20:41:56 2019
+[Tango] - 1 at Mon Apr  8 20:41:58 2019
+[Kilo] - 0 at Mon Apr  8 20:41:58 2019

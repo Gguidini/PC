@@ -27,8 +27,8 @@ pthread_mutex_t READERS_LOCK;   // Lock for readers to get LOCK
 int NUMBER_OF_READERS = 5;      // Number of readers to create
 int NUMBER_OF_WRITERS = 2;      // Number of writers to create
 
-float READERS_WAIT = 2.5;       // Time readers sleep before reading file
-float WRITERS_WAIT = 5;         // Time writers sleep before writing to file
+float READERS_WAIT = 2;       // Time readers sleep before reading file
+float WRITERS_WAIT = 2.5;         // Time writers sleep before writing to file
 
 char* SHARED_FILE = "shared_db.txt";    // The shared resource
 
@@ -68,12 +68,12 @@ void* writer(void* id){
     long thread_id = (long) id;
     FILE* fd = fopen(SHARED_FILE, "a+");
     // writes all words in word bank, in order.
-    for(int i = 0; i < 26; i++){
+    for(int i = 0; i < 10; i++){
         printf(YELLOW "%ld - WRITING FILE AT TIME %s" RESET, thread_id, now());
         // CRITIC REGION
         pthread_mutex_lock(&LOCK);
         char* time = now(); // inside region to see if process is blocked.
-        fprintf(fd, "[%s] - %ld at %s", get_word(i), thread_id, time);
+        fprintf(fd, "[%s] - %ld at %s", get_word(rand()%26), thread_id, time);
         fflush(fd);     // makes sure change is saved in file
         pthread_mutex_unlock(&LOCK);
         // CRITIC REGION ENDS
@@ -93,7 +93,7 @@ void* reader(void* info){
     // init string to store file line
     char str[51];
     str[50] = '\0';
-    for(int i = 0; i < 50; i++){
+    for(int i = 0; i < 15; i++){
         // CRITIC REGION - JUST READERS
         pthread_mutex_lock(&READERS_LOCK);
         reading++;
@@ -127,6 +127,8 @@ void* reader(void* info){
 }
 
 int main() {
+    // seeds rand
+    srand(time(NULL));
     // init locks
     pthread_mutex_init(&LOCK, NULL);
     pthread_mutex_init(&READERS_LOCK, NULL);
