@@ -23,12 +23,14 @@
 
 pthread_mutex_t LOCK;           // Lock for the shared file
 pthread_mutex_t READERS_LOCK;   // Lock for readers to get LOCK
+pthread_mutex_t TURN_LOCK;   // Lock to avoid starvation of WRITERS
+
 
 int NUMBER_OF_READERS = 5;      // Number of readers to create
 int NUMBER_OF_WRITERS = 2;      // Number of writers to create
 
-float READERS_WAIT = 2;       // Time readers sleep before reading file
-float WRITERS_WAIT = 2.5;         // Time writers sleep before writing to file
+float READERS_WAIT = 2.5;       // Time readers sleep before reading file
+float WRITERS_WAIT = 4;         // Time writers sleep before writing to file
 
 char* SHARED_FILE = "shared_db.txt";    // The shared resource
 
@@ -51,14 +53,14 @@ char* now(){
 
 // Returns a word from the list of words
 char* get_word(int idx){
-    char* words[26] = {
+    char* words[25] = {
         "Alpha", "Bravo", "Charlie", "Echo", "Foxtrot",
         "Golf", "Hotel", "India", "Juliet", "Kilo",
         "Lima", "Mike", "November", "Oscar", "Papa",
         "Quebec", "Romeo", "Sierra", "Tango", "Uniform",
         "Victor", "Whiskey", "X-ray", "Yankee", "Zulu"
     };
-    return words[idx%26];
+    return words[idx%25];
 }
 
 // Writers write to the shared file every WRITERS_WAIT seconds.
@@ -69,9 +71,11 @@ void* writer(void* id){
     FILE* fd = fopen(SHARED_FILE, "a+");
     // writes all words in word bank, in order.
     for(int i = 0; i < 10; i++){
+        pthread_mutex_lock(&TURN_LOCK);
         printf(YELLOW "%ld - WRITING FILE AT TIME %s" RESET, thread_id, now());
         // CRITIC REGION
         pthread_mutex_lock(&LOCK);
+        pthread_mutex_unlock(&TURN_LOCK);
         char* time = now(); // inside region to see if process is blocked.
         fprintf(fd, "[%s] - %ld at %s", get_word(rand()%26), thread_id, time);
         fflush(fd);     // makes sure change is saved in file
@@ -95,6 +99,7 @@ void* reader(void* info){
     str[50] = '\0';
     for(int i = 0; i < 15; i++){
         // CRITIC REGION - JUST READERS
+        pthread_mutex_lock(&TURN_LOCK);
         pthread_mutex_lock(&READERS_LOCK);
         reading++;
         // Many readers can read at the same time,
@@ -104,6 +109,7 @@ void* reader(void* info){
             pthread_mutex_lock(&LOCK);
         }
         pthread_mutex_unlock(&READERS_LOCK);
+        pthread_mutex_unlock(&TURN_LOCK);
         // CRITIC REGION ENDS - JUST READERS
         // reading file
         while (fgets(str, 50, fd) != NULL){
@@ -132,6 +138,7 @@ int main() {
     // init locks
     pthread_mutex_init(&LOCK, NULL);
     pthread_mutex_init(&READERS_LOCK, NULL);
+    pthread_mutex_init(&TURN_LOCK, NULL);
     // the workers
     pthread_t writers[NUMBER_OF_WRITERS];
     pthread_t readers[NUMBER_OF_WRITERS];
