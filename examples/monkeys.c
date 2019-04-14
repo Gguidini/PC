@@ -26,16 +26,16 @@
 #define RESET   "\x1b[0m"
 
 pthread_mutex_t BRIDGE = PTHREAD_MUTEX_INITIALIZER; // bridge lock
-pthread_mutex_t LEFT = PTHREAD_MUTEX_INITIALIZER; // bridge lock
-pthread_mutex_t RIGHT = PTHREAD_MUTEX_INITIALIZER; // bridge lock
-pthread_mutex_t TURN = PTHREAD_MUTEX_INITIALIZER; // bridge lock
+pthread_mutex_t LEFT = PTHREAD_MUTEX_INITIALIZER; // left side lock
+pthread_mutex_t RIGHT = PTHREAD_MUTEX_INITIALIZER; // right side lock
+pthread_mutex_t TURN = PTHREAD_MUTEX_INITIALIZER; // taking turns lock
 
 int left = 0;       // number of monkeys on the left side wanting to go right
 int right = 0;      // number of monkeys on the right side wanting to go left
 
 // Every monkey is in a side of the bridge.
 // They change sides nonestop.
-// crossing the bridge takes 0.1s
+// crossing the bridge takes 0.8s
 void* monkey(void* info){
     sleep(1);   // wait all monkeys to be created
     long side = (long) info;    // initial side
@@ -51,7 +51,7 @@ void* monkey(void* info){
             pthread_mutex_unlock(&RIGHT);
             pthread_mutex_unlock(&TURN);            
             side = side == 1 ? 0 : 1;   // change sides
-            sleep(0.1);
+            sleep(0.8);
             pthread_mutex_lock(&RIGHT);
             right--;    // finished crossing to the left side
             printf( BLUE "Macaco chegou na esquerda\n" RESET);
@@ -71,7 +71,7 @@ void* monkey(void* info){
             pthread_mutex_unlock(&LEFT);
             pthread_mutex_unlock(&TURN);
             side = side == 1 ? 0 : 1;   // change sides
-            sleep(0.1);
+            sleep(0.8);
             pthread_mutex_lock(&LEFT);
             left--;
             printf( MAGENTA "Macaco chegou na direita\n" RESET);
@@ -87,11 +87,9 @@ int main() {
     pthread_t monkeys[MONKEYS * 2];
     for(int i = 0; i < MONKEYS; i++) {
         pthread_create(&monkeys[i], NULL, monkey, (void*) 0);
-    }
-    for(int i = 0; i < MONKEYS; i++) {
-        pthread_create(&monkeys[i], NULL, monkey, (void*) 1);
+        pthread_create(&monkeys[i + MONKEYS], NULL, monkey, (void*) 1);
     }
 
     // monkey threads are eternal
-    pthread_join(&monkeys[0], NULL);
+    pthread_join(monkeys[0], NULL);
 }
