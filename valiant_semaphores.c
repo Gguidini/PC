@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <time.h>
 #include <string.h>
 #include <stdbool.h>
@@ -21,9 +22,7 @@
 #define BK_RED "\x1b[41m"
 #define WRITERS 10
 
-pthread_cond_t deliver = PTHREAD_COND_INITIALIZER;
-pthread_cond_t wait_valiant_return = PTHREAD_COND_INITIALIZER;
-pthread_mutex_t lock_letters = PTHREAD_MUTEX_INITIALIZER;
+sem_t deliver, returned, bag;
 
 int letters_in_bag;
 bool is_valiant_here;
@@ -31,38 +30,24 @@ bool is_valiant_here;
 void* Valiant() {
     printf(BK_RED "Valiant is ready to deliver!\n" RESET);
     while(1){
-        pthread_mutex_lock(&lock_letters);
-            while(letters_in_bag != 20){
-                pthread_cond_wait(&deliver, &lock_letters);
-            }
-        is_valiant_here = false;
-        letters_in_bag = 0;
-        pthread_mutex_unlock(&lock_letters);
+       
         printf(RED "Valiant is going behind enemy lines\n");
-        sleep(2 + rand()%5);
-        pthread_mutex_lock(&lock_letters);
+        
         printf(RED "Valiant has returned!\n");
-        is_valiant_here = true;
-        pthread_cond_broadcast(&wait_valiant_return);
-        pthread_mutex_unlock(&lock_letters);
+       
     }
 }
 
 void* Writer(void* data) {
     long id = (long) data;
     while(1){
-        pthread_mutex_lock(&lock_letters);
-        while(!is_valiant_here || letters_in_bag == 20){
-            printf(YELLOW "%ld: Valiant isn't available. I'll wait.\n", id);
-            pthread_cond_wait(&wait_valiant_return, &lock_letters);
-        }
-        letters_in_bag++;
+        
+        printf(YELLOW "%ld: Valiant isn't here. I'll wait.\n", id);
+        
         printf(CYAN "%ld: Put my letter in bag. Now there are %d letters.\n", id, letters_in_bag);
-        if(letters_in_bag == 20){
-            printf(GREEN "%ld: Waking up Valiant because bag is full\n", id);
-            pthread_cond_signal(&deliver);
-        }
-        pthread_mutex_unlock(&lock_letters);
+        
+        printf(GREEN "%ld: Waking up Valiant because bag is full\n", id);
+        
         sleep(rand()%15 + 1);
     }
 }
