@@ -22,33 +22,43 @@
 #define BK_RED "\x1b[41m"
 #define WRITERS 10
 
-sem_t deliver, returned, bag;
+sem_t deliver, wake_valiant, bag;
 
 int letters_in_bag;
-bool is_valiant_here;
 
 void* Valiant() {
     printf(BK_RED "Valiant is ready to deliver!\n" RESET);
     while(1){
-       
+        sem_wait(&wake_valiant);
         printf(RED "Valiant is going behind enemy lines\n");
-        
+        sem_wait(&bag);
+        letters_in_bag = 0;
+        sleep(rand()%5 + 2);
         printf(RED "Valiant has returned!\n");
-       
+        sem_post(&bag);
+        // add 20 permissions to deliver
+        for(int i = 0; i < 20; i++) sem_post(&deliver);
     }
 }
 
 void* Writer(void* data) {
     long id = (long) data;
     while(1){
-        
-        printf(YELLOW "%ld: Valiant isn't here. I'll wait.\n", id);
-        
+        int t = sem_trywait(&deliver);
+        if(t != 0){
+            printf(YELLOW "%ld: Valiant isn't here. I'll wait.\n", id);
+            sem_wait(&deliver);
+        }
+        sem_wait(&bag);
+        letters_in_bag++;
         printf(CYAN "%ld: Put my letter in bag. Now there are %d letters.\n", id, letters_in_bag);
+        if(letters_in_bag == 20){
+            printf(GREEN "%ld: Waking up Valiant because bag is full\n", id);
+            sem_post(&wake_valiant);
+        }
+        sem_post(&bag);
         
-        printf(GREEN "%ld: Waking up Valiant because bag is full\n", id);
-        
-        sleep(rand()%15 + 1);
+        sleep(rand()%10 + 1);
     }
 }
 
@@ -56,7 +66,9 @@ int main() {
     pthread_t pigeon, writers[WRITERS];
 
     letters_in_bag = 0;
-    is_valiant_here = true;
+    sem_init(&deliver, 0, 20);
+    sem_init(&bag, 0, 1);
+    sem_init(&wake_valiant, 0, 0);
 
     pthread_create(&pigeon, NULL, Valiant, NULL);
     for(long i = 0; i < WRITERS; i++) {
