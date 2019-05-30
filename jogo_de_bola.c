@@ -59,7 +59,7 @@ typedef struct {
 
 // Eventos
 struct {
-    char event[100][10];
+    char event[10][100];
     int idx;
     bool has_event;
 } Events;
@@ -68,7 +68,7 @@ struct {
 void add_event(char ev[]){
     pthread_mutex_lock(&events);
     Events.has_event = true;
-    Events.event[Events.idx] = ev;
+    strcpy(Events.event[Events.idx], ev);
     Events.idx = (Events.idx + 1)%10;
     pthread_mutex_unlock(&events);
 }
@@ -305,7 +305,7 @@ int main(){
             }
             // Chance that mom will call some kid home
             int come_home = rand()%100;
-            if(come_home >= 80) {
+            if(come_home >= 75) {
                 // Decide who will not play anymore
                 int poor_kid = rand()%kids_playing;
                 poor_kid = playing_idx[poor_kid];
@@ -318,7 +318,7 @@ int main(){
             }
         }
 
-        printf("LAST EVENTS:\n");
+        printf("ACONTECIMENTOS RECENTES:\n");
         pthread_mutex_lock(&events);
             if(Events.has_event){
                 int c = 0;
