@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <string.h>
 #include <time.h>
 
 #define KIDS 24
@@ -26,7 +27,14 @@
 #define COME_HOME 1
 #define WANNA_PLAY 3
 
+#define GREEN "\x1b[32m"
+#define BLUE "\x1b[34m"
+#define RESET "\x1b[0m"
+#define CYAN "\x1b[36m"
+#define RED "\x1b[31m"
+
 pthread_mutex_t court = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t events = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t states; // Lock recursivo
 pthread_mutexattr_t states_attr;
 pthread_cond_t lets_play = PTHREAD_COND_INITIALIZER;
@@ -46,7 +54,24 @@ typedef struct {
     int id;
     char* name;
     bool has_ball;
+    char* color;
 } child_t;
+
+// Eventos
+struct {
+    char event[100][10];
+    int idx;
+    bool has_event;
+} Events;
+
+// Add new event
+void add_event(char ev[]){
+    pthread_mutex_lock(&events);
+    Events.has_event = true;
+    Events.event[Events.idx] = ev;
+    Events.idx = (Events.idx + 1)%10;
+    pthread_mutex_unlock(&events);
+}
 
 // get_my_state retorna o estado atual de uma criança
 // Função atômica.
@@ -84,6 +109,10 @@ void* child(void* data){
                 pthread_cond_wait(&lets_play, &court);
             }
         }
+        char event_to_add[100];
+        strcpy(event_to_add, info->color);
+        strcat(event_to_add, info->name);
+        add_event(strcat(event_to_add, ": Entrei na quadra para brincar :)\n"));
         kids_in_court++;
         played[info->id] = false;
         // printf("%s (%d): Entrou na quadra. %d pessoas na quadra\n", info->name, info->id, kids_in_court);
@@ -133,7 +162,8 @@ void* child(void* data){
                 // Nao tem mais crianças com bola na quadra
                 // Entao todos tem que sair
                 // printf("%s (%d): Mandei geral sair\n", info->name, info->id);
-                for(int i = 0; i < KIDS; i++){
+                int i;
+                for(i = 0; i < KIDS; i++){
                     if(i != info->id){
                         set_my_state(i, COME_HOME);
                         sem_post(&child_pb[i]);
@@ -158,7 +188,8 @@ void* child(void* data){
                 // Ninguem mais queria brincar
                 // Porem o numero de jogadores agora eh impar
                 // Entao tem que tirar alguem
-                for(int i = info->id + 1; i < KIDS; i = (i+1)%KIDS){
+                int i;
+                for(i = info->id + 1; i < KIDS; i = (i+1)%KIDS){
                     if(get_my_state(i) == LETS_PLAY){
                         // printf("%s (%d): Tirando (%d) da brincadeira\n", info->name, info->id, i);
                         set_my_state(i, WANNA_PLAY);
@@ -197,6 +228,8 @@ char* pick_name(int i){
 int main(){
     // Seed rand
     srand(time(NULL));
+    Events.idx = 0;
+    Events.has_event = false;
     // Inicializa mutex recursivo
     pthread_mutexattr_init(&states_attr);
     pthread_mutexattr_settype(&states_attr, PTHREAD_MUTEX_RECURSIVE);
@@ -207,7 +240,8 @@ int main(){
     kids_waiting_to_play = -1;
     // Informações das crianças
     child_t kids_info[KIDS];
-    for(int i = 0; i < KIDS; i++){
+    int i;
+    for(i = 0; i < KIDS; i++){
         // Inicializa os semaforos das crianças
         sem_init(&child_pb[i], 0, 0);
         child_state[i] = -1;
@@ -216,11 +250,12 @@ int main(){
         kids_info[i].id = i;
         kids_info[i].name = pick_name(i);
         kids_info[i].has_ball = i%BALL == 0 ? true : false;
+        kids_info[i].color = i%BALL == 0 ? BLUE : GREEN;
     }
     // Inicializa a informação das crianças
     // E as threads das crianças
     pthread_t kids[KIDS];
-    for(int i = 0; i < KIDS; i++){
+    for(i = 0; i < KIDS; i++){
         pthread_create(&kids[i], NULL, child, (void*) &kids_info[i]);
     }
     // Mostra as informações na tela
@@ -229,38 +264,40 @@ int main(){
         pthread_mutex_lock(&court);
         pthread_mutex_lock(&states);
         int kids_playing = 0;
-        char* playing[KIDS];
+        int playing[KIDS];
         int idx = 0;
-        for(int i = 0; i < KIDS; i++){
+        for(i = 0; i < KIDS; i++){
             if(child_state[i] == LETS_PLAY){
                 kids_playing++;
-                playing[idx++] = kids_info[i].name;
+                playing[idx++] = kids_info[i].id;
             }
         }
         printf(
-            "%23s: %02d %23s: %02d %23s: %d\n", 
-            "Kids playing", kids_playing,
-            "Kids in the court", kids_in_court,
-            "Kids with a ball", ball_owners_in_court
+            "%23s: %02d\t%23s: %02d\t" BLUE "%23s: %d\n\n" RESET, 
+            "Galera brincando", kids_playing,
+            "Galera na quadra", kids_in_court,
+            "Donos de bola na quadra", ball_owners_in_court
         );
         
-        printf("KIDS WAITING TO PLAY\n");
+        printf("QUEM TA ESPERANDO PARA BRINCAR:\n");
         if(kids_waiting_to_play != -1){
-            printf("%10s\n", kids_info[kids_waiting_to_play].name);
+            printf("%s%10s\n" RESET, kids_info[kids_waiting_to_play].color, kids_info[kids_waiting_to_play].name);
         } else {
-            printf("All children happy :D\n");
+            printf(CYAN "All children happy :D\n" RESET);
         }
 
-        printf("KIDS PLAYING:\n");
-        for(int i = 0; i < kids_playing-1; i+= 2){
-            printf("%10s\t%10s\n", playing[i], playing[i+1]);
+        printf("QUEM TA BRINCANDO:\n");
+        for(i = 0; i < kids_playing-1; i+= 2){
+            printf( "%s%10s" RESET "\t%s%10s\n" RESET,
+            kids_info[playing[i]].color, kids_info[playing[i]].name,
+            kids_info[playing[i+1]].color, kids_info[playing[i+1]].name);
         }
 
         if(kids_playing > 0){
             // Get id of children playing
             int playing_idx[KIDS];
             idx = 0;
-            for(int i = 0; i < kids_playing; i++){
+            for(i = 0; i < kids_playing; i++){
                 if(child_state[i] == LETS_PLAY){
                     playing_idx[idx] = i;
                     idx++;
@@ -268,15 +305,31 @@ int main(){
             }
             // Chance that mom will call some kid home
             int come_home = rand()%100;
-            if(come_home >= 70) {
+            if(come_home >= 80) {
                 // Decide who will not play anymore
                 int poor_kid = rand()%kids_playing;
                 poor_kid = playing_idx[poor_kid];
-                printf("%s, vem pra casa agora!\n", kids_info[poor_kid].name);
+                char event_to_add[100];
+                strcpy(event_to_add, RED);
+                strcat(event_to_add, kids_info[poor_kid].name);
+                add_event(strcat(event_to_add, ", VEM PRA CASA AGORA!\n"));
                 child_state[poor_kid] = COME_HOME;
                 sem_post(&child_pb[poor_kid]);
             }
         }
+
+        printf("LAST EVENTS:\n");
+        pthread_mutex_lock(&events);
+            if(Events.has_event){
+                int c = 0;
+                for(i = Events.idx; c < 10; i = (i+1)%10){
+                    printf("%s" RESET, Events.event[i]);
+                    c++;
+                }
+            } else {
+                printf("Sem eventos\n");
+            }
+        pthread_mutex_unlock(&events);
         pthread_mutex_unlock(&court);
         pthread_mutex_unlock(&states);
         sleep(1);
