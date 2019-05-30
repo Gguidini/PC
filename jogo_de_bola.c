@@ -21,13 +21,14 @@
 #include <time.h>
 
 #define KIDS 24
-#define BALL 6
+#define BALL 8
 
 #define LETS_PLAY 0
 #define COME_HOME 1
 #define WANNA_PLAY 3
 
 #define GREEN "\x1b[32m"
+#define YELLOW  "\x1b[33m"
 #define BLUE "\x1b[34m"
 #define RESET "\x1b[0m"
 #define CYAN "\x1b[36m"
@@ -127,7 +128,7 @@ void* child(void* data){
         while(s != COME_HOME){
             // printf("%s (%d): Meu estado é %d\n", info->name, info->id, s);
             pthread_mutex_lock(&states); 
-            if(s == WANNA_PLAY && kids_waiting_to_play != -1){
+            if(s == WANNA_PLAY && kids_waiting_to_play != -1 && kids_waiting_to_play != info->id){
                 // Criança quer brincar e existe um numero impar de crianças que tambem querem
                 // Libera a outra crinaça que está esperando
                 // printf("%s (%d): Quero brincar e (%d) estava esperando para brincar\n",
@@ -159,17 +160,26 @@ void* child(void* data){
             // printf("%s (%d): Sai com minha bola. %d pessoas com bola na quadra\n",
             // info->name, info->id, ball_owners_in_court);
             if(ball_owners_in_court == 0){
+                pthread_mutex_lock(&states);
                 // Nao tem mais crianças com bola na quadra
                 // Entao todos tem que sair
                 // printf("%s (%d): Mandei geral sair\n", info->name, info->id);
                 int i;
                 for(i = 0; i < KIDS; i++){
-                    if(i != info->id){
-                        set_my_state(i, COME_HOME);
+                    if(i != info->id && get_my_state(i) != COME_HOME){
+                        set_my_state(i, COME_HOME); // Manda todo mundo sair
+                        played[i] = false;          // Eles saem sem alterar nada
                         sem_post(&child_pb[i]);
                     }
                 }
+                char event_to_add[100];
+                strcpy(event_to_add, YELLOW);
+                strcat(event_to_add, info->name);
+                add_event(strcat(event_to_add, ": ACABOU A BRINCADEIRA, PESSOAL :/\n"));
                 kids_waiting_to_play = -1;
+                played[info->id] = false;
+                local_played = false;
+                pthread_mutex_unlock(&states);
             }
             pthread_mutex_unlock(&court);
         }
@@ -209,7 +219,10 @@ void* child(void* data){
         pthread_mutex_unlock(&states);
 
         // Criança fazendo coisas
-        sleep(rand()%20 + 5);
+        if(!info->has_ball)
+            sleep(rand()%20 + 5);
+        else 
+            sleep(rand()%20 + 10);
     }
 }
 
@@ -283,7 +296,7 @@ int main(){
         if(kids_waiting_to_play != -1){
             printf("%s%10s\n" RESET, kids_info[kids_waiting_to_play].color, kids_info[kids_waiting_to_play].name);
         } else {
-            printf(CYAN "All children happy :D\n" RESET);
+            printf(CYAN "Todo mundo brincando :D\n" RESET);
         }
 
         printf("QUEM TA BRINCANDO:\n");
@@ -305,7 +318,7 @@ int main(){
             }
             // Chance that mom will call some kid home
             int come_home = rand()%100;
-            if(come_home >= 75) {
+            if(come_home >= 55) {
                 // Decide who will not play anymore
                 int poor_kid = rand()%kids_playing;
                 poor_kid = playing_idx[poor_kid];
