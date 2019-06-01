@@ -9,6 +9,8 @@
     Eventualmente as mães das crianças as chamam para casa, e nesse momento ela deve parar
     de brincar. Se a criança chamada é a única dona de uma bola, a brincadeira acaba.
     
+    Este código só funciona em sistemas UNIX.
+    Compile com a flag -pthread
 */
 
 #include <stdio.h>
