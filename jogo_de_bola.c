@@ -116,7 +116,6 @@ void* child(void* data){
         add_event(strcat(event_to_add, ": Entrei na quadra para brincar :)\n"));
         kids_in_court++;
         played[info->id] = false;
-        // printf("%s (%d): Entrou na quadra. %d pessoas na quadra\n", info->name, info->id, kids_in_court);
         set_my_state(info->id, WANNA_PLAY);
         pthread_mutex_unlock(&court);
         // Criança esta na quadra
@@ -126,20 +125,16 @@ void* child(void* data){
         // Se o dono da bola foi embora
         int s = get_my_state(info->id);
         while(s != COME_HOME){
-            // printf("%s (%d): Meu estado é %d\n", info->name, info->id, s);
             pthread_mutex_lock(&states); 
             if(s == WANNA_PLAY && kids_waiting_to_play != -1 && kids_waiting_to_play != info->id){
                 // Criança quer brincar e existe um numero impar de crianças que tambem querem
                 // Libera a outra crinaça que está esperando
-                // printf("%s (%d): Quero brincar e (%d) estava esperando para brincar\n",
-                // info->name, info->id, kids_waiting_to_play);
                 set_my_state(info->id, LETS_PLAY);
                 set_my_state(kids_waiting_to_play, LETS_PLAY);
                 played[kids_waiting_to_play] = true;
                 played[info->id] = true;
                 kids_waiting_to_play = -1;
             } else if(s == WANNA_PLAY && kids_waiting_to_play == -1){
-                // printf("%s (%d): Quero brincar, mas tenho que esperar mais alguem\n", info->name, info->id);
                 kids_waiting_to_play = info->id;
                 played[info->id] = false;                
             }
@@ -147,23 +142,19 @@ void* child(void* data){
             // Espera alguma ação que precisa de resposta
             sem_wait(&child_pb[info->id]);
             s = get_my_state(info->id);     
-            // printf("%s (%d): Fui acordada com estado %d\n", info->name, info->id, s);  
         }
         // Clean up antes de sair
         pthread_mutex_lock(&states);
         bool local_played = played[info->id];
-        // printf("%s (%d): Saindo da quadra. [Played %d] [Kids in court %d]\n", info->name, info->id, local_played, kids_in_court);
         kids_in_court--;
         if(info->has_ball){
             pthread_mutex_lock(&court);
             ball_owners_in_court--;
-            // printf("%s (%d): Sai com minha bola. %d pessoas com bola na quadra\n",
             // info->name, info->id, ball_owners_in_court);
             if(ball_owners_in_court == 0){
                 pthread_mutex_lock(&states);
                 // Nao tem mais crianças com bola na quadra
                 // Entao todos tem que sair
-                // printf("%s (%d): Mandei geral sair\n", info->name, info->id);
                 int i;
                 for(i = 0; i < KIDS; i++){
                     if(i != info->id && get_my_state(i) != COME_HOME){
@@ -190,7 +181,6 @@ void* child(void* data){
             if(kids_waiting_to_play != -1){
                 // Ve se alguem estava esperando para brincar
                 // E coloca essa criança para brincar
-                // printf("%s (%d): Colocando %d para brincar\n", info->name, info->id, kids_waiting_to_play);
                 set_my_state(kids_waiting_to_play, LETS_PLAY);
                 played[kids_waiting_to_play] = true;
                 kids_waiting_to_play = -1;
@@ -201,7 +191,6 @@ void* child(void* data){
                 int i;
                 for(i = info->id + 1; i < KIDS; i = (i+1)%KIDS){
                     if(get_my_state(i) == LETS_PLAY){
-                        // printf("%s (%d): Tirando (%d) da brincadeira\n", info->name, info->id, i);
                         set_my_state(i, WANNA_PLAY);
                         played[i] = false;
                         sem_post(&child_pb[i]);
